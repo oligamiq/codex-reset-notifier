@@ -2,8 +2,13 @@
 name = "codex-reset-notifier"
 version = "0.1.0"
 edition = "2024"
-description = "Notify your phone when a Codex ChatGPT quota window resets"
+description = "Send phone notifications when Codex quota windows are exhausted or reset"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/oligamiq/codex-reset-notifier"
+homepage = "https://github.com/oligamiq/codex-reset-notifier"
+keywords = ["codex", "notifications", "ntfy", "quota", "openai"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 anyhow = "1"

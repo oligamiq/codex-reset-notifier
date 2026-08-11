@@ -1,0 +1,43 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a problem. Do not include OpenAI credentials, ntfy tokens, or private topic names.
+  - type: input
+    id: version
+    attributes:
+      label: codex-reset-notifier version
+      placeholder: v0.1.0 or commit hash
+    validations:
+      required: true
+  - type: input
+    id: codex
+    attributes:
+      label: Codex CLI version
+      placeholder: codex-cli 0.146.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 26.04, Windows 11, macOS ...
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include sanitized logs and reproduction steps where useful.
+    validations:
+      required: true
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, ntfy tokens, and private topic names from this report.
+          required: true

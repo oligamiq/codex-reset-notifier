@@ -50,6 +50,12 @@ impl State {
             })
     }
 
+    pub fn is_exhausted(&self, window: &QuotaWindow) -> bool {
+        self.windows
+            .get(&window.window_duration_mins)
+            .is_some_and(|prev| prev.used_percent < 99.9 && window.used_percent >= 99.9)
+    }
+
     pub fn update(&mut self, window: &QuotaWindow) {
         self.windows.insert(
             window.window_duration_mins,
@@ -104,6 +110,22 @@ mod tests {
         let mut state = State::default();
         state.update(&window(50.0, 1_000));
         assert!(!state.is_reset(&window(40.0, 2_000), 700));
+    }
+
+    #[test]
+    fn crossing_to_exhausted_is_detected_once() {
+        let mut state = State::default();
+        state.update(&window(99.0, 1_000));
+        let exhausted = window(100.0, 1_000);
+        assert!(state.is_exhausted(&exhausted));
+        state.update(&exhausted);
+        assert!(!state.is_exhausted(&window(100.0, 1_000)));
+    }
+
+    #[test]
+    fn first_observation_at_exhausted_is_not_a_notification() {
+        let state = State::default();
+        assert!(!state.is_exhausted(&window(100.0, 1_000)));
     }
 }
 

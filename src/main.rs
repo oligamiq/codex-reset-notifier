@@ -75,14 +75,14 @@ fn main() -> Result<()> {
     loop {
         match AppServer::start(&cli.codex_command) {
             Ok(mut server) => loop {
-                match poll_once(
+                let windows = match poll_once(
                     &mut server,
                     &mut state,
                     &state_path,
                     notifier.as_ref(),
                     cli.dry_run,
                 ) {
-                    Ok(()) => {}
+                    Ok(windows) => windows,
                     Err(err) => {
                         eprintln!("poll failed: {err:#}");
                         if cli.once {
@@ -90,11 +90,12 @@ fn main() -> Result<()> {
                         }
                         break;
                     }
-                }
+                };
                 if cli.once {
                     return Ok(());
                 }
-                thread::sleep(Duration::from_secs(cli.interval_secs));
+                let delay = next_poll_delay(&windows, unix_now(), cli.interval_secs);
+                thread::sleep(Duration::from_secs(delay));
             },
             Err(err) => {
                 eprintln!("failed to start Codex app-server: {err:#}");
@@ -113,7 +114,7 @@ fn poll_once(
     state_path: &std::path::Path,
     notifier: Option<&NtfyNotifier>,
     dry_run: bool,
-) -> Result<()> {
+) -> Result<Vec<QuotaWindow>> {
     let windows = server.read_quota_windows()?;
     let now = unix_now();
     for window in &windows {
@@ -125,6 +126,15 @@ fn poll_once(
             window.resets_at,
         );
 
+        if state.is_exhausted(window) {
+            let title = format!("Codex {} quota exhausted", window_label(window));
+            let body = format!(
+                "Quota has been used up. Usage: {:.1}% (0% remaining).",
+                window.used_percent,
+            );
+            send_notification(notifier, dry_run, &title, &body)?;
+        }
+
         if state.is_reset(window, now) {
             let title = format!("Codex {} quota reset", window_label(window));
             let body = format!(
@@ -132,18 +142,42 @@ fn poll_once(
                 window.used_percent,
                 (100.0 - window.used_percent).max(0.0),
             );
-            if dry_run {
-                println!("DRY RUN notification: {title} — {body}");
-            } else if let Some(notifier) = notifier {
-                notifier.send(&title, &body)?;
-                println!("notification sent: {title}");
-            }
+            send_notification(notifier, dry_run, &title, &body)?;
         }
 
         state.update(window);
         state.save(state_path)?;
     }
+    Ok(windows)
+}
+
+fn send_notification(
+    notifier: Option<&NtfyNotifier>,
+    dry_run: bool,
+    title: &str,
+    body: &str,
+) -> Result<()> {
+    if dry_run {
+        println!("DRY RUN notification: {title} — {body}");
+    } else if let Some(notifier) = notifier {
+        notifier.send(title, body)?;
+        println!("notification sent: {title}");
+    }
     Ok(())
+}
+
+fn next_poll_delay(windows: &[QuotaWindow], now: i64, base_interval: u64) -> u64 {
+    windows.iter().fold(base_interval, |delay, window| {
+        let until_reset = window.resets_at - now;
+        let candidate = if until_reset > 0 && until_reset <= base_interval as i64 {
+            (until_reset as u64).saturating_add(2)
+        } else if (-120..=0).contains(&until_reset) {
+            5
+        } else {
+            base_interval
+        };
+        delay.min(candidate.max(1))
+    })
 }
 
 fn window_label(window: &QuotaWindow) -> String {
@@ -169,4 +203,49 @@ fn unix_now() -> i64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
+}
+
+#[cfg(test)]
+mod adaptive_poll_tests {
+    use super::*;
+
+    fn window(reset_at: i64) -> QuotaWindow {
+        QuotaWindow {
+            used_percent: 50.0,
+            window_duration_mins: 10_080,
+            resets_at: reset_at,
+        }
+    }
+
+    #[test]
+    fn normal_polling_far_from_reset() {
+        assert_eq!(next_poll_delay(&[window(2_000)], 1_000, 300), 300);
+    }
+
+    #[test]
+    fn wakes_just_after_upcoming_reset() {
+        assert_eq!(next_poll_delay(&[window(1_100)], 1_000, 300), 102);
+    }
+    #[test]
+    fn retries_briefly_if_server_has_not_advanced() {
+        assert_eq!(next_poll_delay(&[window(995)], 1_000, 300), 5);
+    }
+
+    #[test]
+    fn stale_past_deadline_does_not_poll_forever() {
+        assert_eq!(next_poll_delay(&[window(800)], 1_000, 300), 300);
+    }
+
+    #[test]
+    fn earliest_window_controls_wakeup() {
+        let windows = [
+            window(1_250),
+            QuotaWindow {
+                used_percent: 10.0,
+                window_duration_mins: 300,
+                resets_at: 1_050,
+            },
+        ];
+        assert_eq!(next_poll_delay(&windows, 1_000, 300), 52);
+    }
 }

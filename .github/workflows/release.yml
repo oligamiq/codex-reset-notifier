@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select stable Rust
+        run: rustup default stable
+      - run: cargo build --release --locked
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          arch=$(echo "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+          case "$RUNNER_OS" in
+            Linux)
+              cp target/release/codex-reset-notifier "dist/codex-reset-notifier-linux-${arch}"
+              ;;
+            macOS)
+              cp target/release/codex-reset-notifier "dist/codex-reset-notifier-macos-${arch}"
+              ;;
+            Windows)
+              cp target/release/codex-reset-notifier.exe "dist/codex-reset-notifier-windows-${arch}.exe"
+              ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        run: sha256sum dist/* > dist/SHA256SUMS.txt
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --generate-notes --verify-tag

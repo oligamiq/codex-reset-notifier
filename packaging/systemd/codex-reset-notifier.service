@@ -1,5 +1,5 @@
 [Unit]
-Description=Codex quota reset smartphone notifier
+Description=Codex quota smartphone notifier
 After=network-online.target
 Wants=network-online.target
 
