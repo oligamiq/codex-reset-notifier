@@ -42,12 +42,23 @@ jobs:
 
 
   installer-smoke:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - name: Install latest release into temporary directory
+      - name: Install latest release (POSIX)
+        if: runner.os != 'Windows'
         env:
           CODEX_NOTIFY_INSTALL_DIR: ${{ runner.temp }}/codex-reset-notifier-bin
-        run: sh install.sh
-      - name: Verify installed binary
-        run: ${{ runner.temp }}/codex-reset-notifier-bin/codex-reset-notifier --version
+        run: |
+          sh install.sh
+          "${{ runner.temp }}/codex-reset-notifier-bin/codex-reset-notifier" --version
+      - name: Install latest release (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:CODEX_NOTIFY_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'codex-reset-notifier-bin'
+          ./install.ps1
+          & (Join-Path $env:CODEX_NOTIFY_INSTALL_DIR 'codex-reset-notifier.exe') --version
