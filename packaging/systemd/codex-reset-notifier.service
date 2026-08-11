@@ -1,0 +1,16 @@
+[Unit]
+Description=Codex quota reset smartphone notifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/codex-reset-notifier/env
+ExecStart=%h/.local/bin/codex-reset-notifier --codex-command %h/.local/bin/codex
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
