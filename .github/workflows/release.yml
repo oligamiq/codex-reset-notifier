@@ -45,12 +45,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+      - name: Stage installers
+        run: cp install.sh install.ps1 dist/
       - name: Generate checksums
-        run: (cd dist && sha256sum codex-reset-notifier-* > SHA256SUMS.txt)
+        run: (cd dist && sha256sum codex-reset-notifier-* install.sh install.ps1 > SHA256SUMS.txt)
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

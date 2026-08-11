@@ -18,6 +18,14 @@ jobs:
       - name: Select stable Rust
         run: rustup default stable
       - run: cargo test --locked --all-targets
+      - name: Parse PowerShell installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path ./install.ps1), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count) { $errors | Format-List; exit 1 }
 
   lint:
     runs-on: ubuntu-latest
@@ -29,3 +37,17 @@ jobs:
         run: rustup component add rustfmt clippy
       - run: cargo fmt --all -- --check
       - run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Check POSIX installer syntax
+        run: sh -n install.sh
+
+
+  installer-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install latest release into temporary directory
+        env:
+          CODEX_NOTIFY_INSTALL_DIR: ${{ runner.temp }}/codex-reset-notifier-bin
+        run: sh install.sh
+      - name: Verify installed binary
+        run: ${{ runner.temp }}/codex-reset-notifier-bin/codex-reset-notifier --version

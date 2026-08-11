@@ -1,6 +1,6 @@
 [package]
 name = "codex-reset-notifier"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Send phone notifications when Codex quota windows are exhausted or reset"
 license = "MIT"

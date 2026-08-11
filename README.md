@@ -34,6 +34,28 @@ Codex app-server -> codex-reset-notifier -> ntfy -> Android/iOS
 
 The current implementation has been exercised against `codex-cli 0.146.0`. The app-server protocol can change between Codex releases, so please report compatibility regressions with the Codex CLI version included.
 
+## Install
+
+Linux x64 / macOS arm64:
+
+```bash
+curl -fsSL https://github.com/oligamiq/codex-reset-notifier/releases/latest/download/install.sh | sh
+```
+
+Windows x64 (PowerShell):
+
+```powershell
+irm https://github.com/oligamiq/codex-reset-notifier/releases/latest/download/install.ps1 | iex
+```
+
+The installers download the latest GitHub Release and verify its SHA256 against the published `SHA256SUMS.txt` before installing. Override the destination with `CODEX_NOTIFY_INSTALL_DIR`.
+
+If you prefer to inspect the installer before executing it, download `install.sh` / `install.ps1` first and run it locally. Building from source is also supported:
+
+```bash
+cargo install --git https://github.com/oligamiq/codex-reset-notifier --locked
+```
+
 ## Build
 
 ```bash
