@@ -50,7 +50,7 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Generate checksums
-        run: sha256sum dist/* > dist/SHA256SUMS.txt
+        run: (cd dist && sha256sum codex-reset-notifier-* > SHA256SUMS.txt)
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
